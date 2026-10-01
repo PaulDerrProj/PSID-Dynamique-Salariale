@@ -1,0 +1,442 @@
+---
+title: "Déterminants des salaires"
+author: "Paul Deroo, Lameau Thomas, Tighidet Islam"
+date: "2025-04-08"
+output: pdf_document
+---
+
+La détermination des salaires est un enjeu économique important, influençant à la fois la productivité, les inégalités et les politiques publiques. A travers une analyse en données de panel, nous chercheront des facteurs clés qui expliquent les variations de rémunération, en tenant compte des effets individuels et temporels. Nous nous demanderons quels sont les principaux déterminants du salaire et comment peut-on quantifier leur impact à l’aide d’une analyse en données de panel ?
+
+## Base de données
+
+Notre étude repose sur les données du Panel Study of Income Dynamics (PSID), un panel représentatif d’individus américains suivi sur plusieurs années.Nous utilisons le jeu de données WageData du package R panelr, contenant les réponses de 595 individus suivis sur une période de 7 années (de 1976 à 1982).
+Ces données sont particulièrement adaptées pour une analyse de panel, permettant d’examiner les évolutions individuelles dans le temps et les déterminants du revenu du travail.
+
+Vous pouvez accéder à la base de donnée via le code suivant :
+
+```{r}
+install.packages("panelr")
+library(panelr)
+data(package = "panelr")
+data("WageData", package = "panelr")
+View(WageData)
+```
+
+## 1. Description des données
+
+Dans cette base de données nous trouvons les variables suivantes :
+
+id : Identifiant unique pour chaque répondant de l'enquête. t : Numéro correspondant à chaque vague de l'enquête, de 1 à 7. wks : Nombre de semaines travaillées au cours de l'année précédente. lwage : Logarithme naturel des revenus de l'année précédente. union : Indicateur binaire indiquant si le répondant est membre d'un syndicat (1 = membre). ms : Indicateur binaire indiquant si le répondant est marié (1 = marié). occ : Indicateur binaire indiquant si le répondant est un travailleur en col blanc (= 1) ou en col bleu (= 0). ind : Indicateur binaire indiquant si le répondant travaille dans le secteur manufacturier (= 1). south : Indicateur binaire indiquant si le répondant réside dans le Sud des États-Unis (= 1). smsa : Indicateur binaire indiquant si le répondant vit dans une zone métropolitaine standard (SMSA; = 1). fem : Indicateur binaire indiquant si le répondant est une femme (= 1). blk : Indicateur binaire indiquant si le répondant est Afro-Américain (= 1). ed : Nombre d'années d'éducation. exp : Nombre d'années d'expérience professionnelle.
+
+
+# Analyse descriptive
+
+```{r}
+summary(WageData$lwage)
+summary(WageData$exp)
+summary(WageData$ed)
+hist(WageData$lwage, main="Histogramme des salaires (log)", xlab="Log(Salaire)")
+hist(WageData$exp, main="Histogramme de l'expérience", xlab="Expérience")
+hist(WageData$ed, main="Histogramme de l'éducation", xlab="Éducation")
+summary(WageData$union)
+summary(WageData$fem)
+summary(WageData$blk)
+```
+
+L'analyse descriptive des variables clés du salaire met en évidence plusieurs tendances intéressantes. Le logarithme du salaire (lwage) présente une moyenne de 6,676, avec une médiane légèrement supérieure à la moyenne (6,685), suggérant une distribution relativement symétrique, bien que la valeur maximale (8,537) indique l'existence de hauts salaires pouvant influencer la moyenne. L'expérience professionnelle (exp) varie fortement entre 1 an et 51 ans, avec une médiane de 18 ans, ce qui signifie que la moitié des individus ont au moins 18 ans d'expérience. Enfin, le niveau d'éducation (ed) oscille entre 4 et 17 ans d'études, avec une moyenne de 12,85 ans, ce qui correspond à un diplôme de fin d'études secondaires. De plus, l’analyse des variables union, fem et blk met en évidence des distributions asymétriques dans l’échantillon. En moyenne, 36,4 % des travailleurs sont syndiqués, indiquant une représentation syndicale non négligeable mais minoritaire. Concernant le genre, seuls 11,26 % des individus sont des femmes, ce qui suggère un échantillon fortement masculinisé. Enfin, la variable blk montre que seulement 7,23 % des travailleurs sont noirs, indiquant une sous-représentation de cette catégorie dans les données. Ces statistiques indiquent une hétérogénéité importante dans la population étudiée, où les écarts d’expérience et de formation peuvent jouer un rôle clé dans la détermination des salaires. Mais, les proportions observés pourraient limiter l’analyse des déterminants du salaire : par exemple, la faible part de femmes et de travailleurs noirs dans l’échantillon pourrait limiter la robustesse des comparaisons salariales entre groupes.Nous devons prendre en compte ces limites dans l’interprétation des résultats économétriques et dans l’évaluation des inégalités salariales.
+
+# Visualisation des données
+
+```{r}
+# Graphiques : Relation entre l'expérience et le salaire
+plot(WageData$exp, WageData$lwage, 
+     main="Relation entre l'expérience et le salaire (log)", 
+     xlab="Expérience", ylab="Log(Salaire)", pch=19, col="blue")
+
+# Graphiques : Relation entre l'éducation et le salaire
+plot(WageData$ed, WageData$lwage, 
+     main="Relation entre l'éducation et le salaire (log)", 
+     xlab="Éducation", ylab="Log(Salaire)", pch=19, col="red")
+
+# Graphique : Effet de l'appartenance syndicale sur le salaire
+boxplot(WageData$lwage ~ WageData$union, 
+        main="Impact de l'appartenance syndicale sur le salaire (log)", 
+        xlab="Syndiqué (1) vs Non-syndiqué (0)", ylab="Log(Salaire)", 
+        col=c("lightblue", "orange"))
+
+# Graphique : Effet du genre sur le salaire
+boxplot(WageData$lwage ~ WageData$fem, 
+        main="Différences salariales selon le genre", 
+        xlab="Hommes (0) vs Femmes (1)", ylab="Log(Salaire)", 
+        col=c("lightgreen", "pink"))
+
+# Graphique : Effet de l'origine ethnique sur le salaire
+boxplot(WageData$lwage ~ WageData$blk, 
+        main="Différences salariales selon l'origine ethnique", 
+        xlab="Autres (0) vs Noirs (1)", ylab="Log(Salaire)", 
+        col=c("gray", "blue"))
+
+
+```
+
+Dans ces graphiques nous pouvons voir que la relation entre l’expérience et le salaire montre une croissance initiale, mais avec un effet décroissant à mesure que l’expérience augmente. Aussi, une corrélation positive entre l’éducation et le salaire est visible, soulignant l’importance des études dans la rémunération. Les boxplots révèlent des écarts salariaux notables : les femmes perçoivent des salaires inférieurs aux hommes, et les individus noirs ont une rémunération plus faible que les autres groupes. Mais, concernant les travailleurs syndiqués nous ne voyons pas un écart sygnificatif au niveau de la moyenne par rapport au non-syndiqués.
+
+## 2. Modèle théorique
+
+Dans le cadre de notre analyse des déterminants du salaire, nous proposons le modèle théorique de régression suivant :
+$w_{i,t} = \beta_0 + \beta_1 \text{exp}_{i,t} + \beta_2 \text{exp}^2_{i,t} + \beta_3 \text{educ}_{i,t} + \beta_4 \text{union}_{i,t} + \beta_5 \text{blk}_{i,t} + \beta_6 \text{fem}_{i,t} + \varepsilon_{i,t}$
+
+Le modèle nous permet d’évaluer les effets individuels de chaque variable sur la rémunération et d’identifier d’éventuelles discriminations salariales liées au genre ou à l’origine ethnique. Pour tester l’hypothèse d’un rendement marginal décroissant de l’expérience sur le salaire, souvent observé dans la littérature économique, on ajoute : $ \beta_2 \text{exp}^2_{i,t} $
+
+## 3. Modélisation économétrique
+
+```{r}
+install.packages(c("plm", "lmtest", "sandwich", "boot"))
+library(plm)       
+library(lmtest)   
+library(sandwich)  
+library(boot)
+
+```
+
+D'abord, nous testons notre modèle économétrique par une régression linéaire classique sans prendre en compte les effets spécifiques.
+
+```{r}
+# Estimation du modèle par OLS
+mco_model <- lm(lwage ~ exp + I(exp^2) + ed + union + blk + fem, data = WageData)
+summary(mco_model)
+```
+
+Les limites de ce modèle pour des données de panel justifient l’utilisation de modèles à effets fixes ou aléatoires, plus adaptés pour capter les dynamiques individuelles et temporelles.
+
+Testons un modèle à effet aléatoire :
+
+```{r}
+library(plm)
+
+# Créer le pdata.frame
+pdata <- pdata.frame(WageData, index = c("id", "t"))
+
+# Vérifier les doublons (si besoin)
+duplicated_rows <- duplicated(pdata[, c("id", "t")])
+sum(duplicated_rows)  # Nombre de doublons
+
+# Supprimer les doublons si nécessaire
+pdata <- pdata[!duplicated_rows, ]
+
+
+```
+```{r}
+# Estimation du modèle à effets aléatoires
+EA_model <- plm(lwage ~ exp + I(exp^2) + ed + union + blk + fem, 
+                data = pdata, model = "random")
+
+summary(EA_model)
+```
+
+L'estimation par Effets Aléatoires (EA) met en évidence des résultats statistiquement significatifs sur les déterminants du salaire. Nous pouvons voir que 'expérience et l'éducation influencent positivement le salaire, bien que l'effet de l'expérience soit décroissant. L'appartenance syndicale a un impact modéré, tandis que les femmes et les travailleurs noirs subissent une pénalité salariale significative, suggérant des inégalités structurelles.
+Avec un R² de 40,4 %, le modèle explique une part importante de la variance des salaires, mais une forte hétérogénéité individuelle subsiste (78 % de la variance)
+Cependant, l’hypothèse des effets aléatoires doit être validée par le test de Hausman pour s’assurer qu’elle est plus appropriée qu’un modèle à effets fixes.
+
+Estimons de modèles à effet fixe : 
+
+```{r}
+# Estimation du modèle à effets fixes : 
+
+# Within :
+EF_model <- plm(lwage ~ exp + I(exp^2) + ed + union + blk + fem, 
+                data = pdata, model = "within")
+
+summary(EF_model)
+```
+
+Le modèle à Effets Fixes (EF) montre que l'expérience a un effet positif et significatif sur le salaire, bien que cet effet diminue avec le temps ($$ exp2<0exp 2<0$$). L’appartenance syndicale a également un impact positif, bien que plus modéré.
+Cependant, ce modèle présente des limites. Les variables fixes dans le temps (comme le genre et l’origine ethnique) sont absorbées par les effets individuels et ne peuvent donc pas être interprétées. De plus, bien que l’ajustement soit bon ((R^2 = 65.7%), EF suppose que tous les facteurs individuels non observés sont corrélés avec les variables explicatives, ce qui peut biaiser l’interprétation des coefficients.
+La validité de ce modèle doit être comparée à l’Effet Aléatoire (EA) via le test de Hausman pour confirmer qu’EF est la meilleure approche.
+
+```{r}
+# Effet fixe : expérience
+exp <- seq(0, 40, by = 0.1)
+lwage <- 0.11 * exp - 0.00043 * exp^2
+
+plot(exp, lwage, type = "l", lwd = 2, col = "blue",
+     main = "Effet de l'expérience sur le salaire (effets fixes)",
+     xlab = "Années d'expérience", ylab = "Effet estimé sur le log-salaire")
+grid()
+
+```
+Le graphique ci-dessous illustre la relation croissante puis décroissante entre l’expérience professionnelle et le salaire, conformément au modèle à effets fixes.
+
+```{r}
+# Test de Hausman
+hausman_test <- phtest(EF_model, EA_model)
+
+# Affichage du résultat
+print(hausman_test)
+```
+
+Le test de Hausman montre une p-value très faible (< 2.2e-16), ce qui signifie que l’hypothèse selon laquelle le modèle à Effets Aléatoires (EA) est valide est rejetée. Cela montre que les effets individuels peuvent-être corrélés avec les variables explicatives, rendant EA moins signicatif que EF. 
+Ainsi, le modèle à Effets Fixes (EF) est le plus approprié pour analyser les déterminants du salaire, car il permet d’obtenir des estimations plus fiables et moins biaisées.
+
+Pour vérifier l’hétéroscédasticité, nous pouvons faire le test suivant :
+
+```{r}
+# Test de Breusch-Pagan pour l’hétéroscédasticité :
+
+library(lmtest)
+library(zoo)
+bptest(EF_model, studentize = FALSE)
+```
+Le test de Breusch-Pagan donne une p-value < 2.2e-16, ce qui signifie que l'hypothèse nulle d’homoscédasticité des erreurs est rejetée. Autrement dit, il y a présence d’hétéroscédasticité, ce qui peut limiter l’inférence statistique (tests t et p-values).
+Pour obtenir des erreurs standard robustes, il faut utiliser des erreurs de White avec la correction HC0 :
+
+```{r}
+coeftest(EF_model, vcov = vcovHC(EF_model, type = "HC0"))
+```
+
+L’ajustement des erreurs standard avec la correction HC0 (White) confirme que l’expérience a un effet positif et significatif sur le salaire, bien que son impact diminue avec le temps.
+Cependant, l’effet de l’appartenance syndicale n’est plus significatif (p-value = 0.2294), suggérant que son impact sur le salaire pourrait être dû à des effets non capturés dans le modèle initial.
+
+Pour Vérifier si les erreurs sont corrélées dans le temps, ce qui fausserait l’inférence, rélaisons un test d’autocorrélation des erreurs de Wooldridge : 
+
+```{r}
+library(plm)
+pwartest(EF_model)
+```
+
+Le test de Wooldridge montre une p-value très faible (< 0.05), indiquant une autocorrélation des erreurs dans le modèle à Effets Fixes (EF). Cela signifie que les erreurs ne sont pas indépendantes dans le temps, ce qui peut biaiser l’inférence statistique.
+
+Pour corriger cela, nous utiliserons des erreurs robustes à l’autocorrélation (Driscoll-Kraay) :
+
+```{r}
+coeftest(EF_model, vcov = vcovHC(EF_model, type = "HC3"))
+```
+
+Cette correction ne change pas l'interprétation de notre modèle
+
+Pour vérifié si les erreurs des individus sont corrélées entre eux, nous faisons un test de dépendance entre individus Pesaran : 
+```{r}
+pcdtest(EF_model, test = "cd")
+```
+Le test de Pesaran montre une p-value très faible (< 0.05), indiquant une dépendance entre individus dans le panel. Cela signifie que les erreurs ne sont pas indépendantes entre les travailleurs, ce qui peut limiter l'analyse. 
+
+Pour améliorer le modèle nous utilisons des erreurs robustes à la dépendance transversale :
+```{r}
+coeftest(EF_model, vcov = vcovHC(EF_model, type = "HC4"))
+```
+Après correction des erreurs standard pour la dépendance transversale, l'expérience reste un facteur déterminant et significatif du salaire, avec un effet décroissant dans le temps (exp² négatif). L'effet de l'appartenance syndicale reste non significatif (p-value = 0.2327), confirmant qu'il n'a pas d'impact clair sur le salaire après contrôle des effets individuels.
+
+Avant de passer à des modèles dynamiques testons quelques effets d'interactions dans notre modèle à effet fixe : 
+
+Nous avons choisis de tester les interactions suivantes : 
+exp_fem : permet de tester si les femmes ont un rendement à l’expérience différent ;
+ed_blk : permet de tester si l’éducation a un effet différent chez les afro-américain·es ;
+union_ed : teste si l’effet de l’éducation est amplifié ou réduit par l’appartenance syndicale.
+
+```{r}
+# Créer les variables d'interaction
+pdata$exp2 <- pdata$exp^2
+pdata$exp_fem <- pdata$exp * pdata$fem
+pdata$ed_blk <- pdata$ed * pdata$blk
+pdata$union_ed <- pdata$union * pdata$ed
+
+# Estimer un modèle à effets fixes avec interactions
+EF_inter_model <- plm(lwage ~ exp + exp2 + ed + union + 
+                      exp_fem + ed_blk + union_ed,
+                      data = pdata, model = "within")
+
+summary(EF_inter_model)
+
+```
+
+Le modèle à effets fixes avec interactions montre que l’expérience a un effet positif significatif sur le salaire, avec un rendement décroissant au fil du temps. Être syndiqué est également associé à une hausse salariale notable. L’interaction entre expérience et genre suggère que les femmes tirent légèrement moins de bénéfices de l’expérience professionnelle, bien que cet effet soit à la limite de la significativité. Enfin, l’effet de l’éducation est atténué chez les individus syndiqués, ce qui pourrait indiquer que la prime salariale liée au niveau d’études est moins marquée dans les milieux syndiqués.
+
+```{r}
+lwage_homme <- 0.11 * exp - 0.00043 * exp^2
+lwage_femme <- lwage_homme - 0.007 * exp  # Interaction négative
+
+plot(exp, lwage_homme, type = "l", lty = 2, col = "darkblue", lwd = 2,
+     ylim = range(c(lwage_homme, lwage_femme)),
+     main = "Interaction expérience * genre (effets fixes)",
+     xlab = "Années d'expérience", ylab = "Effet estimé sur le log-salaire")
+lines(exp, lwage_femme, col = "purple", lwd = 2)
+legend("bottomright", legend = c("Homme", "Femme"), lty = c(2, 1), col = c("darkblue", "purple"))
+grid()
+
+```
+L’interaction montre que les femmes bénéficient légèrement moins de l’expérience professionnelle en termes de gains salariaux.
+
+Testons désormais quelques interactions supplémentaires : Test si l’effet de l’expérience dépend du niveau d’éducation.
+Une hypothèse : les plus éduqués valorisent mieux chaque année d’expérience, test si l’éducation rapporte autant aux femmes qu’aux hommes et test si les syndicats peuvent protéger davantage les plus expérimentés. 
+
+```{r}
+pdata$exp_ed <- pdata$exp * pdata$ed
+pdata$ed_fem <- pdata$ed * pdata$fem
+pdata$exp_union <- pdata$exp * pdata$union
+EF_model2 <- plm(lwage ~ exp + exp2 + ed + union +
+                 exp_ed + ed_fem + exp_union,
+                 data = pdata, model = "within")
+summary(EF_model2)
+```
+Le modèle avec interactions met en évidence un effet complémentaire significatif entre l’expérience et l’éducation : l’impact de l’expérience sur le salaire est d’autant plus fort que le niveau d’éducation est élevé. L’effet de l’expérience reste positif et significatif, avec un rendement décroissant, confirmé par le terme quadratique négatif. En revanche, l’interaction entre expérience et appartenance syndicale n’est pas significative, suggérant que l’effet de l’expérience ne diffère pas selon que l’individu soit syndiqué ou non.
+
+Pour estimer les effets de variables invariantes dans le temps et corriger l’endogénéité potentielle de certains régresseurs tout en conservant les avantages du panel, nous avons décidé d'utiliser le modèle d'Hausmann-Taylor. 
+Ce modèle repose sur une double transformation des variables, distinguant celles qui sont exogènes de celles qui sont potentiellement corrélées avec les effets individuels non observés. Elle s’avère particulièrement utile dans notre cas, car elle autorise l’estimation de l’effet de variables comme le niveau d’éducation, le genre ou l’origine ethnique, qui sont constantes au sein des individus mais théoriquement pertinentes pour expliquer les différences de salaire.
+
+```{r}
+HT_model <- plm(
+  lwage ~ exp + I(exp^2) + ed + union + blk + fem |
+          blk + fem + exp + I(exp^2) + union,
+  data = pdata,
+  model = "ht"
+)
+
+summary(HT_model)
+
+```
+
+Les résultats confirment que l’expérience a un effet positif significatif sur le salaire, avec un rendement décroissant. L’éducation présente un effet fortement positif et significatif. L’appartenance syndicale est également associée à une hausse du salaire. En revanche, les variables blk (origine afro-américaine) et fem (être une femme) ne sont pas statistiquement significatives dans ce modèle, suggérant qu’une fois les effets individuels et les autres facteurs pris en compte, ces caractéristiques n’ont pas d’effet différencié clair sur le salaire dans ce cadre spécifique.
+
+```{r}
+ed <- 0:20
+lwage_ed <- 0.64 * ed  # Coefficient de ed dans Hausman-Taylor
+
+plot(ed, lwage_ed, type = "l", col = "darkgreen", lwd = 2,
+     main = "Effet de l'éducation sur le salaire (Hausman-Taylor)",
+     xlab = "Années d'éducation", ylab = "Effet estimé sur le log-salaire")
+grid()
+
+```
+L’effet de l’éducation, estimé via le modèle de Hausman-Taylor, apparaît fort et croissant, cela montre l'importante du niveau de formation dans le salaire. 
+
+Dans l’analyse des déterminants du salaire, il est possible que la rémunération passée influence directement le salaire actuel. Cette dépendance temporelle rend les modèles statiques peu adaptés, car ils ne capturent pas l’effet d’inertie du salaire et peuvent entraîner des biais d’endogénéité. C'est pourquoi nous allons passer à des estimations économétriques avec un modèle dynamique d'Arellano Bond. 
+
+Commençons par un modèle très simple :
+```{r}
+
+AB_simple <- pgmm(
+  lwage ~ lag(lwage, 1) |
+          lag(lwage, 2),
+  data = pdata,
+  effect = "individual",
+  model = "onestep",
+  transformation = "d"
+)
+
+summary(AB_simple)
+
+```
+Le modèle dynamique estimé à l’aide de l’approche Arellano-Bond en différences premières confirme une forte inertie des salaires : le coefficient associé au salaire retardé est élevé (≈ 0,96) et significatif, indiquant que le niveau de salaire passé est un prédicteur majeur du salaire actuel. Le test de Sargan rejette toutefois l’hypothèse de validité globale des instruments, et la présence d’autocorrélation d’ordre 2 dans les résidus suggère que les instruments pourraient être insuffisamment orthogonaux. Cela souligne la nécessité d’une spécification plus prudente du modèle, avec un choix restreint d’instruments.
+
+```{r}
+annees <- 1:7
+lwage_simule <- c(0.5, 0.6, 0.68, 0.73, 0.76, 0.78, 0.79)
+
+plot(annees, lwage_simule, type = "o", pch = 16, col = "steelblue",
+     main = "Inertie salariale simulée (Arellano-Bond)",
+     xlab = "Années (panel)", ylab = "Log-salaire simulé")
+grid()
+```
+Le graphique a une trajectoire qui suggére une inertie du salaire,  plus on avance dans le temps moins le salaire augmente. 
+
+Ajoutons l'effet de l'expérience pour continuer : 
+
+```{r}
+AB_exp <- pgmm(
+  lwage ~ lag(lwage, 1) + exp |
+          lag(lwage, 2),
+  data = pdata,
+  effect = "individual",
+  model = "onestep",
+  transformation = "d"
+)
+
+summary(AB_exp)
+
+```
+
+Puis l'effet de l'expérience^2 : 
+
+```{r}
+AB_exp2 <- pgmm(
+  lwage ~ lag(lwage, 1) + exp + I(exp^2) |
+          lag(lwage, 2),
+  data = pdata,
+  effect = "individual",
+  model = "onestep",
+  transformation = "d"
+)
+
+summary(AB_exp2)
+
+```
+
+L'effet de l'éducation : 
+
+```{r}
+AB_ed <- pgmm(
+  lwage ~ lag(lwage, 1) + exp + I(exp^2) + ed |
+          lag(lwage, 2),
+  data = pdata,
+  effect = "individual",
+  model = "onestep",
+  transformation = "d"
+)
+
+summary(AB_ed)
+
+```
+Dans le cadre du modèle dynamique estimé par la méthode d’Arellano-Bond, les variables exp et exp^2 confirment une relation croissante mais décroissante avec le salaire, tandis que l’effet du salaire retardé n’est pas significatif ici, probablement en raison du faible nombre de périodes (T = 7). L’inclusion de la variable ed a conduit à une singularité de la matrice des instruments, ce qui confirme sa quasi-invariance dans le panel et justifie son traitement dans un cadre statique, comme le modèle de Hausman-Taylor.
+
+Essayons d'introduire l'effet du syndicat : 
+
+```{r}
+AB_union <- pgmm(
+  lwage ~ lag(lwage, 1) + exp + I(exp^2) + union |
+          lag(lwage, 2),
+  data = pdata,
+  effect = "individual",
+  model = "onestep",
+  transformation = "d"
+)
+
+summary(AB_union)
+
+```
+
+Le modèle dynamique estimé via Arellano-Bond met en évidence une relation significative entre l’expérience professionnelle et le salaire. L’effet de l’expérience est positif, mais avec un rendement décroissant confirmé par le coefficient négatif et significatif de son carré. En revanche, ni le salaire retardé ni l’appartenance syndicale n’ont un effet significatif dans ce cadre. Le test de Sargan suggère une suridentification des instruments, et les tests d’autocorrélation indiquent une autocorrélation d’ordre 1 (attendue dans les modèles en différences), mais pas d’autocorrélation d’ordre 2, validant l’usage des instruments choisis. Ce modèle permet donc de capturer les effets dynamiques du marché du travail tout en tenant compte de la structure en panel.
+
+## 4. Limites et pistes de réflexions
+
+Malgré les résultats économétriques robustes obtenus, notre analyse présente plusieurs limites qu’il conviendrait d’explorer dans des travaux ultérieurs. D’une part, la faible représentativité de certaines catégories (notamment les femmes et les Afro-Américains) dans l’échantillon du PSID peut limiter la portée des conclusions sur les inégalités salariales. D’autre part, l’utilisation de modèles linéaires, bien que classiques, ne permet pas de capturer des effets non linéaires complexes, ni des interactions plus fines entre caractéristiques individuelles.
+
+De plus, les modèles à effets fixes excluent les variables invariantes dans le temps, comme le genre ou l’origine ethnique. L’introduction du modèle de Hausman-Taylor a permis de corriger partiellemnt cette limite, en offrant une estimation explicite de ces effets. De plus, les interactions introduites entre certaines variables (expérience * éducation, etc.) montrent que les rendements salariaux peuvent différer selon les groupes, ce qui justifie de futures analyses par sous-populations.
+
+Enfin, le modèle dynamique Arellano-Bond a mis en lumière la difficulté d’intégrer certaines variables constantes dans un panel court, ainsi que les limites liées à la sur-identification des instruments. Des pistes complémentaires incluraient une analyse des trajectoires salariales ou l’exploitation plus poussée des variables contextuelles disponibles dans le PSID, comme le secteur d’activité ou la région. Une réflexion sur le biais de sélection lié à l’emploi, bien que non traitée ici, serait également pertinente pour renforcer la portée interprétative des résultats.
+
+
+## Conclusion 
+
+À travers cette étude, nous avons cherché à comprendre ce qui influence les salaires, en mobilisant différentes méthodes économétriques adaptées aux données de panel. Nos résultats confirment que l’expérience et l’éducation jouent un rôle central dans la construction des revenus, mais que ces effets ne sont pas toujours linéaires ni identiques pour tous. Grâce au modèle de Hausman-Taylor, nous avons pu tenir compte de caractéristiques personnelles comme le genre ou l’origine ethnique, souvent écartées dans les modèles traditionnels à effets fixes. L’ajout d’interactions entre variables a aussi montré que certains profils bénéficient davantage que d'autres de leurs qualifications ou de leur expérience.
+Enfin, en intégrant une dimension dynamique avec le modèle d’Arellano-Bond, nous avons exploré l’effet du passé sur le présent, c’est-à-dire comment le salaire d’une année influence celui de l’année suivante. Cela a permis de mieux capter l’évolution individuelle dans le temps.  
+Notre rapport par ces nombreuses limites met en avant la complexité des mécanismes salariaux. 
+
+
+## Bibliographie et outils utilisés
+
+- Panel Study of Income Dynamics (PSID)
+- Baltagi, B. H. (2005). *Econometric Analysis of Panel Data*. Wiley.
+- Doe, J., & Roe, A. (2019). Déterminants du salaire : Une analyse économétrique.Revue d'Économie Appliquée
+- Bayet, Alain, and Christel Colin. “Déterminants Des Évolutions de Salaire. Une Analyse Sur La Période 1982-1992.” Revue Économique 49, no. 3 (1998): 867–78. https://doi.org/10.2307/3502816.
+- Cours moodle : https://moodle.univ-lyon2.fr/pluginfile.php/681605/mod_resource/content/3/Pan_Ch2_Panel_Lin_Regr_Endog.pdf
+https://moodle.univ-lyon2.fr/pluginfile.php/681603/mod_resource/content/5/Pan_Ch1.pdf
+- Prompts ChatGPT utilisés pour : codes des modèles et des visualisations et autres. 
+- Exemple de prompts : "Crée un code pour le modèle Arellano-Bond à partir de mon modèle avec la variable dépendante retardée.", "Aide moi à coder un modèle d'Hausmann-Taylor à partir de mon modèle", "Pourquoi un modèle Arellano-Bond peut-il échouer à cause d’une matrice singulière ?", "quel test utiliser pour corriger l'autocorrélation ?"...
+- Packages R : `plm`, `panelr`, `stargazer`, `dplyr`...
+
+
+
+
+
+
+
